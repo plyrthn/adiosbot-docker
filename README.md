@@ -1,6 +1,8 @@
 # AdiosBot
 
 Adios, inactive members
+![5871-adios-card-chihuahua](https://github.com/user-attachments/assets/a2630b75-7b36-41ed-9ed6-b16e44467fbc)
+
 
 ## Usage
 ```
