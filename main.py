@@ -127,8 +127,9 @@ def get_whitelist():
 @bot.hybrid_group(fallback="show")
 @commands.has_permissions(administrator=True)
 async def whitelist(ctx, name):
+    whitelist = get_whitelist()
     if len(whitelist) > 0:
-        whitelist = "\n".join(get_whitelist())
+        whitelist = "\n".join(whitelist)
         await ctx.send(f"**Whitelisted members (will not be kicked out even when inactive):** \n" + whitelist)
     else:
         await ctx.send(f"**No members currently on the whitelist** \n" + whitelist)
