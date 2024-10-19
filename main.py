@@ -2,6 +2,7 @@
 import discord
 from discord.ext import commands
 import os
+import syslog
 import json
 from datetime import datetime, timezone, timedelta
 import pytz
@@ -20,13 +21,13 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # Folder to store message logs
 
 if 'DISCORD_BOT_TOKEN' not in os.environ:
-    print("Error: DISCORD_BOT_TOKEN is not set")
+    syslog.syslog(syslog.LOG_ERR, "Error: DISCORD_BOT_TOKEN is not set")
     exit(1)
 else:
     bot_token = os.environ.get('DISCORD_BOT_TOKEN')
 
 if 'WORKING_DIR' not in os.environ:
-    print("Error: WORKING_DIR is not set")
+    syslog.syslog(syslog.LOG_ERR, "Error: WORKING_DIR is not set")
     exit(1)
 else:
     working_dir = os.environ.get('WORKING_DIR')
@@ -84,7 +85,7 @@ async def fetch_new_messages(channel):
         json.dump(sorted_new_messages, f, ensure_ascii=False, indent=4)
     
     if new_messages:
-        print(f"Fetched {len(new_messages)} new messages from {channel.name}")
+        syslog.syslog(syslog.LOG_INFO, f"Fetched {len(new_messages)} new messages from {channel.name}")
     
 
 # Fetch and save messages from all channels
@@ -221,7 +222,7 @@ async def kick_inactive(ctx, n: int):
                         await member.kick(reason=f"Inactive in {guild.name} for {n} days")
                         await ctx.send(f"**Kicked {member.name} for inactivity**")
                     except:
-                        print('Error kicking {member.name}')
+                        syslog.syslog(syslog.LOG_ERR, 'Error kicking {member.name}')
                 else:
                     inactive_whitelisted_members.append(member.name)
 
@@ -243,10 +244,10 @@ async def on_message(message):
 
 @bot.event
 async def on_ready():
-    print(f'Logged in as {bot.user.name}')
+    syslog.syslog(syslog.LOG_INFO, f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
         await fetch_messages(guild)
-    print(f"Ready for your commands!")
+    syslog.syslog(syslog.LOG_INFO, f"Ready for your commands!")
 
 # Run the bot
 bot.run(bot_token)
