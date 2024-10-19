@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 import os
 import syslog
 import json
+import random
 from datetime import datetime, timezone, timedelta
 import pytz
+from time import sleep
 
 utc=pytz.UTC
 
@@ -16,7 +18,6 @@ intents.members = True
 intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
-
 
 # Folder to store message logs
 
@@ -243,12 +244,23 @@ async def on_message(message):
     for guild in bot.guilds:
         await fetch_messages(guild)
 
+
+with open(f'{working_dir}/goodbye_songs.json', 'r', encoding='utf-8') as f:
+    goodbye_songs = json.load(f)
+
+@tasks.loop(seconds=120)
+async def change_song():
+    random_song = random.choice(goodbye_songs)
+    activity = discord.Activity(type=discord.ActivityType.listening, name=f"{random_song['title']} by {random_song['artist']}")
+    await bot.change_presence(activity=activity)
+
 @bot.event
 async def on_ready():
     syslog.syslog(syslog.LOG_INFO, f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
         await fetch_messages(guild)
     syslog.syslog(syslog.LOG_INFO, f"Ready for your commands!")
-
+    change_song.start()
+    
 # Run the bot
 bot.run(bot_token)
