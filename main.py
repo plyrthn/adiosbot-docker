@@ -135,6 +135,7 @@ async def whitelist(ctx, name):
     else:
         await ctx.send(f"**No members currently on the whitelist** \n" + whitelist)
 
+
 @whitelist.command()
 @commands.has_permissions(administrator=True)
 async def add(ctx, name):
@@ -167,6 +168,20 @@ async def remove(ctx, name):
     with open(WHITELIST_PATH, 'w', encoding='utf-8') as f:
         json.dump(existing_members, f, ensure_ascii=False, indent=4)
     await ctx.send(f"**User {name} was removed from the whitelist**\nThe whitelist currently contains the following users:\n" + "\n".join(existing_members))
+
+
+@bot.command(name='ban')
+async def ban_user(ctx, username: str):
+    member = ctx.message.author
+    user = ctx.guild.get_member_named(username)
+    if member.guild_permissions.administrator:
+        if username == member.name:
+            await ctx.send("**Can't timeout yourself!**")
+        else:
+            await user.timeout(timedelta(minutes=1), reason="For reasons")
+            await ctx.send(f"**User {username} was timed out for 1 minute**")
+    else:
+        await member.timeout(timedelta(minutes=1), reason="Why did you think that would work? You fool. You buffoon.")
 
 # Check for inactive members
 @bot.command(name='inactive')
