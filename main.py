@@ -18,9 +18,6 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 
 # Folder to store message logs
-MESSAGE_LOG_DIR = 'message_logs'
-if not os.path.exists(MESSAGE_LOG_DIR):
-    os.makedirs(MESSAGE_LOG_DIR)
 
 if 'DISCORD_BOT_TOKEN' not in os.environ:
     print("Error: DISCORD_BOT_TOKEN is not set")
@@ -28,6 +25,17 @@ if 'DISCORD_BOT_TOKEN' not in os.environ:
 else:
     bot_token = os.environ.get('DISCORD_BOT_TOKEN')
 
+if 'WORKING_DIR' not in os.environ:
+    print("Error: WORKING_DIR is not set")
+    exit(1)
+else:
+    working_dir = os.environ.get('WORKING_DIR')
+
+if not os.path.exists(working_dir):
+    os.makedirs(working_dir)
+
+MESSAGE_LOG_DIR = working_dir + "/message_logs"
+WHITELIST_PATH = working_dir + "/whitelist.json"
     
 # Load existing messages from disk
 def load_existing_messages(channel_id):
@@ -105,7 +113,7 @@ def remove_member_messages(member, guild):
     return
 
 def get_whitelist():
-    with open('whitelist.json', 'r', encoding='utf-8') as f:
+    with open(WHITELIST_PATH, 'r', encoding='utf-8') as f:
         return json.load(f)
 
 
@@ -120,7 +128,7 @@ async def whitelist(ctx, name):
 async def add(ctx, name):
     guild = ctx.guild
     existing_members = []
-    with open('whitelist.json', 'r', encoding='utf-8') as f:
+    with open(WHITELIST_PATH, 'r', encoding='utf-8') as f:
         existing_members = json.load(f)
     if name not in [member.name for member in guild.members]:
         await ctx.send(f"**User {name} does not exist or is not a member of this server**")
@@ -129,7 +137,7 @@ async def add(ctx, name):
         await ctx.send(f"**User {name} is already on the whitelist**")
         return
     new_members = existing_members + [name]
-    with open('whitelist.json', 'w', encoding='utf-8') as f:
+    with open(WHITELIST_PATH, 'w', encoding='utf-8') as f:
         json.dump(new_members, f, ensure_ascii=False, indent=4)
     await ctx.send(f"**User {name} was added to the whitelist**\nThe whitelist currently contains the following users:\n" + "\n".join(new_members))
 
@@ -139,7 +147,7 @@ async def add(ctx, name):
 async def remove(ctx, name):
     guild = ctx.guild
     existing_members = []
-    with open('whitelist.json', 'r', encoding='utf-8') as f:
+    with open(WHITELIST_PATH, 'r', encoding='utf-8') as f:
         existing_members = json.load(f)
     if name not in [member.name for member in guild.members]:
         await ctx.send(f"**User {name} does not exist or is not a member of this server**")
@@ -148,7 +156,7 @@ async def remove(ctx, name):
         await ctx.send(f"**User {name} is not currently on the whitelist**")
         return
     existing_members.remove(name)
-    with open('whitelist.json', 'w', encoding='utf-8') as f:
+    with open(WHITELIST_PATH, 'w', encoding='utf-8') as f:
         json.dump(existing_members, f, ensure_ascii=False, indent=4)
     await ctx.send(f"**User {name} was removed from the whitelist**\nThe whitelist currently contains the following users:\n" + "\n".join(existing_members))
 
