@@ -35,7 +35,10 @@ if not os.path.exists(working_dir):
     os.makedirs(working_dir)
 
 MESSAGE_LOG_DIR = working_dir + "/message_logs"
+if not os.path.exists(MESSAGE_LOG_DIR):
+    os.makedirs(MESSAGE_LOG_DIR)
 WHITELIST_PATH = working_dir + "/whitelist.json"
+
     
 # Load existing messages from disk
 def load_existing_messages(channel_id):
@@ -113,23 +116,27 @@ def remove_member_messages(member, guild):
     return
 
 def get_whitelist():
-    with open(WHITELIST_PATH, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    if os.path.exists(WHITELIST_PATH):
+        with open(WHITELIST_PATH, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    else:
+        return []
 
 
 @bot.hybrid_group(fallback="show")
 @commands.has_permissions(administrator=True)
 async def whitelist(ctx, name):
-    whitelist = "\n".join(get_whitelist())
-    await ctx.send(f"**Whitelisted members (will not be kicked out even when inactive:** \n" + whitelist)
+    if len(whitelist) > 0:
+        whitelist = "\n".join(get_whitelist())
+        await ctx.send(f"**Whitelisted members (will not be kicked out even when inactive):** \n" + whitelist)
+    else:
+        await ctx.send(f"**No members currently on the whitelist** \n" + whitelist)
 
 @whitelist.command()
 @commands.has_permissions(administrator=True)
 async def add(ctx, name):
     guild = ctx.guild
-    existing_members = []
-    with open(WHITELIST_PATH, 'r', encoding='utf-8') as f:
-        existing_members = json.load(f)
+    existing_members = get_whitelist()
     if name not in [member.name for member in guild.members]:
         await ctx.send(f"**User {name} does not exist or is not a member of this server**")
         return
@@ -146,9 +153,7 @@ async def add(ctx, name):
 @commands.has_permissions(administrator=True)
 async def remove(ctx, name):
     guild = ctx.guild
-    existing_members = []
-    with open(WHITELIST_PATH, 'r', encoding='utf-8') as f:
-        existing_members = json.load(f)
+    existing_members = get_whitelist()
     if name not in [member.name for member in guild.members]:
         await ctx.send(f"**User {name} does not exist or is not a member of this server**")
         return
