@@ -33,19 +33,19 @@ in
       description = "AdiosBot";
       after = [ "network.target" ];
       wantedBy = [ "multi-user.target" ];
-      path = [
-        pkgs.python313.withPackages
-        (python-pkgs: [
-          python-pkgs.nextcord
-          python-pkgs.pytz
-        ])
-      ];
-      serviceConfig = {
-        Type = "simple";
-        ExecStart = "${adiosBot}/bin/adiosbot";
-        EnvironmentFile = cfg.botTokenFile;
-        Environment = "WORKING_DIR=${cfg.workingDir}";
-      };
+      serviceConfig =
+        let
+          python = pkgs.python313.withPackages (ps: [
+            ps.nextcord
+            ps.pytz
+          ]);
+        in
+        {
+          Type = "simple";
+          ExecStart = "${lib.getExe python} ${adiosBot}/bin/adiosbot";
+          EnvironmentFile = cfg.botTokenFile;
+          Environment = "WORKING_DIR=${cfg.workingDir}";
+        };
     };
   };
 }
