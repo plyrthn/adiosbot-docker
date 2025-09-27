@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-import nextcord
-from nextcord.ext import commands, tasks
+import discord
+from discord.ext import commands, tasks
 import os
 import syslog
 import json
@@ -11,7 +11,7 @@ from time import sleep
 
 utc=pytz.UTC
 
-intents = nextcord.Intents.default()
+intents = discord.Intents.default()
 intents.messages = True
 intents.guilds = True
 intents.members = True
@@ -266,7 +266,7 @@ with open(f'{working_dir}/goodbye_songs.json', 'r', encoding='utf-8') as f:
 @tasks.loop(seconds=120)
 async def change_song():
     random_song = random.choice(goodbye_songs)
-    activity = nextcord.Activity(type=nextcord.ActivityType.listening, name=f"{random_song['title']} by {random_song['artist']}")
+    activity = discord.Activity(type=discord.ActivityType.listening, name=f"{random_song['title']} by {random_song['artist']}")
     await bot.change_presence(activity=activity)
 
 @bot.event

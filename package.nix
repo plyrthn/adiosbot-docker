@@ -5,7 +5,7 @@ pkgs.stdenv.mkDerivation {
   name = "adiosbot";
   pname = "adiosbot";
   propagatedBuildInputs = [
-    pkgs.python3Packages.nextcord
+    pkgs.python3Packages.discordpy
     pkgs.python3Packages.pytz
   ];
   dontUnpack = true;

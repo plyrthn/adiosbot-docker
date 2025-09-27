@@ -36,7 +36,7 @@ in
       serviceConfig =
         let
           python = pkgs.python313.withPackages (ps: [
-            ps.nextcord
+            ps.discordpy
             ps.pytz
           ]);
         in

@@ -28,7 +28,7 @@
         {
           packages.default = pkgs.mkShell {
             packages = [
-              pkgs.python3Packages.nextcord
+              pkgs.python3Packages.discordpy
               pkgs.python3Packages.pytz
               self.packages.${system}.default
             ];
