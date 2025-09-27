@@ -1,6 +1,7 @@
 {
   config,
   lib,
+  pkgs,
   adiosBot,
   ...
 }:
@@ -32,6 +33,13 @@ in
       description = "AdiosBot";
       after = [ "network.target" ];
       wantedBy = [ "multi-user.target" ];
+      path = [
+        pkgs.python313.withPackages
+        (python-pkgs: [
+          python-pkgs.nextcord
+          python-pkgs.pytz
+        ])
+      ];
       serviceConfig = {
         Type = "simple";
         ExecStart = "${adiosBot}/bin/adiosbot";
