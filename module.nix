@@ -34,7 +34,7 @@ in
       wantedBy = [ "multi-user.target" ];
       serviceConfig = {
         Type = "simple";
-        ExecStart = "${lib.getExe adiosBot}";
+        ExecStart = "${adiosBot}/bin/adiosbot";
         EnvironmentFile = cfg.botTokenFile;
         Environment = "WORKING_DIR=${cfg.workingDir}";
       };

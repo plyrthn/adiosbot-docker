@@ -2,8 +2,8 @@
   pkgs,
 }:
 pkgs.stdenv.mkDerivation {
-  name = "autoaspm";
-  pname = "autoaspm";
+  name = "adiosbot";
+  pname = "adiosbot";
   propagatedBuildInputs = [
     pkgs.python3Packages.nextcord
     pkgs.python3Packages.pytz

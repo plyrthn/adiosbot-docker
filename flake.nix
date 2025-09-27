@@ -1,5 +1,5 @@
 {
-  description = "Automatically enable ASPM on all supported PCIe devices";
+  description = "An inactive Discord server member monitor";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
