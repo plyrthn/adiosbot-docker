@@ -41,7 +41,7 @@ if not os.path.exists(MESSAGE_LOG_DIR):
     os.makedirs(MESSAGE_LOG_DIR)
 WHITELIST_PATH = working_dir + "/whitelist.json"
 
-    
+
 # Load existing messages from disk
 def load_existing_messages(channel_id):
     file_path = f"{MESSAGE_LOG_DIR}/{channel_id}.json"
@@ -53,12 +53,12 @@ def load_existing_messages(channel_id):
 # Fetch and save messages from a specific channel, only fetching new ones
 async def fetch_new_messages(channel):
     existing_messages = load_existing_messages(channel.id)
-    
+
     # Find the timestamp of the last saved message
     last_saved_time = None
     if existing_messages:
         last_saved_time = max(datetime.fromisoformat(msg['timestamp']) for msg in existing_messages)
-    
+
     # Fetch only messages newer than the last saved one
     new_messages = []
     async for message in channel.history(limit=10000, after=last_saved_time):
@@ -70,11 +70,11 @@ async def fetch_new_messages(channel):
     for msg in existing_messages + new_messages:
         author_id = msg['author']
         msg_timestamp = datetime.fromisoformat(msg['timestamp'])
-        
+
         # Keep only the latest message for each author
         if (author_id not in newest_messages_by_author) or (msg_timestamp > datetime.fromisoformat(newest_messages_by_author[author_id]['timestamp'])):
             newest_messages_by_author[author_id] = msg
-    
+
     # Convert dictionary values back to a list of messages
     all_messages = list(newest_messages_by_author.values())
 
@@ -84,10 +84,10 @@ async def fetch_new_messages(channel):
     # Save the updated list back to disk
     with open(f"{MESSAGE_LOG_DIR}/{channel.id}.json", 'w', encoding='utf-8') as f:
         json.dump(sorted_new_messages, f, ensure_ascii=False, indent=4)
-    
+
     if new_messages:
         syslog.syslog(syslog.LOG_INFO, f"Fetched {len(new_messages)} new messages from {channel.name}")
-    
+
 
 # Fetch and save messages from all channels
 async def fetch_messages(guild):
@@ -188,7 +188,7 @@ async def ban_user(ctx, username: str):
 async def check_inactive(ctx, n: int):
     await ctx.send(f"Checking for members who haven't sent a message in the last {n} days...")
     guild = ctx.guild
-    
+
     user_last_message = get_last_message_time(guild)
     inactive_members = []
     inactive_whitelisted_members = []
@@ -220,7 +220,7 @@ async def check_inactive(ctx, n: int):
 async def kick_inactive(ctx, n: int):
     await ctx.send(f"Kicking members who haven't sent a message in the last {n} days...")
     guild = ctx.guild
-    
+
     user_last_message = get_last_message_time(guild)
     inactive_members = []
     inactive_whitelisted_members = []
@@ -276,6 +276,6 @@ async def on_ready():
         await fetch_messages(guild)
     syslog.syslog(syslog.LOG_INFO, f"Ready for your commands!")
     change_song.start()
-    
+
 # Run the bot
 bot.run(bot_token)
