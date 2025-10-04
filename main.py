@@ -2,14 +2,14 @@
 import discord
 from discord.ext import commands, tasks
 import os
-import syslog
 import json
 import random
+import requests
 from datetime import datetime, timezone, timedelta
 import pytz
 from time import sleep
 
-utc=pytz.UTC
+utc = pytz.UTC
 
 intents = discord.Intents.default()
 intents.messages = True
@@ -22,16 +22,23 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # Folder to store message logs
 
 if 'DISCORD_BOT_TOKEN' not in os.environ:
-    syslog.syslog(syslog.LOG_ERR, "Error: DISCORD_BOT_TOKEN is not set")
+    print("Error: DISCORD_BOT_TOKEN is not set", flush=True)
     exit(1)
 else:
     bot_token = os.environ.get('DISCORD_BOT_TOKEN')
 
 if 'WORKING_DIR' not in os.environ:
-    syslog.syslog(syslog.LOG_ERR, "Error: WORKING_DIR is not set")
+    print("Error: WORKING_DIR is not set", flush=True)
     exit(1)
 else:
     working_dir = os.environ.get('WORKING_DIR')
+
+# Gotify configuration
+GOTIFY_URL = os.environ.get('GOTIFY_URL', '')
+GOTIFY_TOKEN = os.environ.get('GOTIFY_TOKEN', '')
+AUTO_KICK = os.environ.get('AUTO_KICK', 'false').lower() == 'true'
+INACTIVITY_CHECK_DAYS = int(os.environ.get('INACTIVITY_CHECK_DAYS', '30'))
+CHECK_SCHEDULE_HOURS = int(os.environ.get('CHECK_SCHEDULE_HOURS', '168'))
 
 if not os.path.exists(working_dir):
     os.makedirs(working_dir)
@@ -42,6 +49,30 @@ if not os.path.exists(MESSAGE_LOG_DIR):
 WHITELIST_PATH = working_dir + "/whitelist.json"
 
 
+def send_gotify_notification(title, message, priority=5):
+    if not GOTIFY_URL or not GOTIFY_TOKEN:
+        print("Gotify not configured, skipping notification", flush=True)
+        return False
+
+    try:
+        url = f"{GOTIFY_URL}/message"
+        payload = {
+            "title": title,
+            "message": message,
+            "priority": priority
+        }
+        headers = {
+            "X-Gotify-Key": GOTIFY_TOKEN
+        }
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        response.raise_for_status()
+        print(f"Gotify notification sent: {title}", flush=True)
+        return True
+    except Exception as e:
+        print(f"Failed to send Gotify notification: {str(e)}", flush=True)
+        return False
+
+
 # Load existing messages from disk
 def load_existing_messages(channel_id):
     file_path = f"{MESSAGE_LOG_DIR}/{channel_id}.json"
@@ -49,6 +80,7 @@ def load_existing_messages(channel_id):
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     return []
+
 
 # Fetch and save messages from a specific channel, only fetching new ones
 async def fetch_new_messages(channel):
@@ -63,6 +95,10 @@ async def fetch_new_messages(channel):
     new_messages = []
     async for message in channel.history(limit=10000, after=last_saved_time):
         new_messages.append({'timestamp': message.created_at.isoformat(), 'author': message.author.id})
+
+    # If no new messages, skip file write
+    if not new_messages:
+        return
 
     newest_messages_by_author = {}
 
@@ -85,8 +121,7 @@ async def fetch_new_messages(channel):
     with open(f"{MESSAGE_LOG_DIR}/{channel.id}.json", 'w', encoding='utf-8') as f:
         json.dump(sorted_new_messages, f, ensure_ascii=False, indent=4)
 
-    if new_messages:
-        syslog.syslog(syslog.LOG_INFO, f"Fetched {len(new_messages)} new messages from {channel.name}")
+    print(f"Fetched {len(new_messages)} new messages from {channel.name}", flush=True)
 
 
 # Fetch and save messages from all channels
@@ -94,6 +129,7 @@ async def fetch_messages(guild):
     for channel in guild.text_channels:
         if channel.permissions_for(guild.me).read_message_history:
             await fetch_new_messages(channel)
+
 
 # Get the last message timestamp for each user
 def get_last_message_time(guild):
@@ -108,14 +144,16 @@ def get_last_message_time(guild):
                     user_last_message[user] = timestamp
     return user_last_message
 
+
 def remove_member_messages(member, guild):
     for channel_file in os.listdir(MESSAGE_LOG_DIR):
         messages = []
         with open(f"{MESSAGE_LOG_DIR}/{channel_file}", 'r', encoding='utf-8') as f:
-            messages += [ msg for msg in json.load(f) if msg['author'] != member.id]
+            messages += [msg for msg in json.load(f) if msg['author'] != member.id]
         with open(f"{MESSAGE_LOG_DIR}/{channel_file}", 'w', encoding='utf-8') as f:
             json.dump(messages, f, ensure_ascii=False, indent=4)
     return
+
 
 def get_whitelist():
     if os.path.exists(WHITELIST_PATH):
@@ -128,12 +166,12 @@ def get_whitelist():
 @bot.hybrid_group(fallback="show")
 @commands.has_permissions(administrator=True)
 async def whitelist(ctx, name):
-    whitelist = get_whitelist()
-    if len(whitelist) > 0:
-        whitelist = "\n".join(whitelist)
-        await ctx.send(f"**Whitelisted members (will not be kicked out even when inactive):** \n" + whitelist)
+    whitelist_list = get_whitelist()
+    if len(whitelist_list) > 0:
+        whitelist_str = "\n".join(whitelist_list)
+        await ctx.send(f"**Whitelisted members (will not be kicked out even when inactive):** \n" + whitelist_str)
     else:
-        await ctx.send(f"**No members currently on the whitelist** \n" + whitelist)
+        await ctx.send("**No members currently on the whitelist**")
 
 
 @whitelist.command()
@@ -183,6 +221,7 @@ async def ban_user(ctx, username: str):
     else:
         await member.timeout(timedelta(minutes=1), reason="Why did you think that would work? You fool. You buffoon.")
 
+
 # Check for inactive members
 @bot.command(name='inactive')
 async def check_inactive(ctx, n: int):
@@ -194,13 +233,13 @@ async def check_inactive(ctx, n: int):
     inactive_whitelisted_members = []
     cutoff_date = datetime.now() - timedelta(days=n)
 
-    whitelist = get_whitelist()
+    whitelist_list = get_whitelist()
 
     for member in guild.members:
         if not member.bot:
             last_message_time = user_last_message.get(member.id)
             if last_message_time is None or last_message_time < utc.localize(cutoff_date):
-                if member.name not in whitelist:
+                if member.name not in whitelist_list:
                     inactive_members.append(member.name)
                 else:
                     inactive_whitelisted_members.append(member.name)
@@ -214,6 +253,7 @@ async def check_inactive(ctx, n: int):
     if inactive_whitelisted_members:
         await ctx.send(f"**{str(len(inactive_whitelisted_members))} whitelisted inactive members:**\n" + "\n".join(inactive_whitelisted_members))
 
+
 # Check for inactive members
 @bot.command(name='kick_inactive')
 @commands.has_permissions(administrator=True)
@@ -226,20 +266,20 @@ async def kick_inactive(ctx, n: int):
     inactive_whitelisted_members = []
     cutoff_date = datetime.now() - timedelta(days=n)
 
-    whitelist = get_whitelist()
+    whitelist_list = get_whitelist()
 
     for member in guild.members:
         if not member.bot:
             last_message_time = user_last_message.get(member.id)
             if last_message_time is None or last_message_time < utc.localize(cutoff_date):
-                if member.name not in whitelist:
+                if member.name not in whitelist_list:
                     inactive_members.append(member.name)
                     remove_member_messages(member, guild)
                     try:
                         await member.kick(reason=f"Inactive in {guild.name} for {n} days")
                         await ctx.send(f"**Kicked {member.name} for inactivity**")
                     except:
-                        syslog.syslog(syslog.LOG_ERR, 'Error kicking {member.name}')
+                        print(f'Error kicking {member.name}', flush=True)
                 else:
                     inactive_whitelisted_members.append(member.name)
 
@@ -253,15 +293,67 @@ async def kick_inactive(ctx, n: int):
         await ctx.send(f"**Did not kick {str(len(inactive_whitelisted_members))} whitelisted inactive members:**\n" + "\n".join(inactive_whitelisted_members))
 
 
+async def scheduled_inactivity_check():
+    print(f"Running scheduled inactivity check (AUTO_KICK={AUTO_KICK})", flush=True)
+
+    for guild in bot.guilds:
+        user_last_message = get_last_message_time(guild)
+        inactive_members = []
+        cutoff_date = datetime.now() - timedelta(days=INACTIVITY_CHECK_DAYS)
+        whitelist_list = get_whitelist()
+
+        for member in guild.members:
+            if not member.bot:
+                last_message_time = user_last_message.get(member.id)
+                if last_message_time is None or last_message_time < utc.localize(cutoff_date):
+                    if member.name not in whitelist_list:
+                        inactive_members.append(member)
+
+        if inactive_members:
+            member_list = "\n".join([f"- {m.name}" for m in inactive_members])
+
+            if AUTO_KICK:
+                kicked = []
+                for member in inactive_members:
+                    try:
+                        remove_member_messages(member, guild)
+                        await member.kick(reason=f"Inactive for {INACTIVITY_CHECK_DAYS} days")
+                        kicked.append(member.name)
+                        print(f"Auto-kicked {member.name} for inactivity", flush=True)
+                    except:
+                        print(f"Failed to kick {member.name}", flush=True)
+
+                if kicked:
+                    message = f"Auto-kicked {len(kicked)} inactive members from {guild.name}:\n\n{chr(10).join([f'- {name}' for name in kicked])}"
+                    send_gotify_notification(
+                        f"[AUTO-KICK] {len(kicked)} Members Kicked",
+                        message,
+                        priority=8
+                    )
+            else:
+                message = f"Found {len(inactive_members)} inactive members in {guild.name} (no messages in {INACTIVITY_CHECK_DAYS} days):\n\n{member_list}\n\nUse !kick_inactive {INACTIVITY_CHECK_DAYS} to remove them."
+                send_gotify_notification(
+                    f"[ALERT] {len(inactive_members)} Inactive Members Detected",
+                    message,
+                    priority=7
+                )
+
+
+@tasks.loop(hours=CHECK_SCHEDULE_HOURS)
+async def scheduled_check_task():
+    await scheduled_inactivity_check()
+
+
 @bot.event
 async def on_message(message):
     await bot.process_commands(message)
-    for guild in bot.guilds:
-        await fetch_messages(guild)
+    if not message.author.bot and message.guild:
+        await fetch_new_messages(message.channel)
 
 
-with open(f'{working_dir}/goodbye_songs.json', 'r', encoding='utf-8') as f:
+with open('/data/goodbye_songs.json', 'r', encoding='utf-8') as f:
     goodbye_songs = json.load(f)
+
 
 @tasks.loop(seconds=120)
 async def change_song():
@@ -269,13 +361,22 @@ async def change_song():
     activity = discord.Activity(type=discord.ActivityType.listening, name=f"{random_song['title']} by {random_song['artist']}")
     await bot.change_presence(activity=activity)
 
+
 @bot.event
 async def on_ready():
-    syslog.syslog(syslog.LOG_INFO, f'Logged in as {bot.user.name}')
+    print(f'Logged in as {bot.user.name}', flush=True)
+    send_gotify_notification(
+        "[STARTUP] AdiosBot Started",
+        f"Bot is online and monitoring {len(bot.guilds)} server(s)\nAuto-kick: {'ENABLED' if AUTO_KICK else 'DISABLED'}\nCheck interval: every {CHECK_SCHEDULE_HOURS} hours\nInactivity threshold: {INACTIVITY_CHECK_DAYS} days",
+        priority=5
+    )
+
     for guild in bot.guilds:
         await fetch_messages(guild)
-    syslog.syslog(syslog.LOG_INFO, f"Ready for your commands!")
+    print(f"Ready for your commands!", flush=True)
     change_song.start()
+    scheduled_check_task.start()
+
 
 # Run the bot
 bot.run(bot_token)
