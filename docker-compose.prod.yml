@@ -1,0 +1,15 @@
+services:
+  adiosbot:
+    image: ghcr.io/plyrthn/adiosbot:latest
+    container_name: adiosbot
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+    environment:
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - GOTIFY_URL=${GOTIFY_URL:-}
+      - GOTIFY_TOKEN=${GOTIFY_TOKEN:-}
+      - AUTO_KICK=${AUTO_KICK:-false}
+      - INACTIVITY_CHECK_DAYS=${INACTIVITY_CHECK_DAYS:-30}
+      - CHECK_SCHEDULE_HOURS=${CHECK_SCHEDULE_HOURS:-168}
+      - WORKING_DIR=/data
