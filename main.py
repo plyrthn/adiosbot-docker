@@ -70,7 +70,8 @@ def send_gotify_notification(title, message, priority=5):
         headers = {
             "X-Gotify-Key": GOTIFY_TOKEN
         }
-        response = requests.post(url, json=payload, headers=headers, timeout=10)
+
+        response = requests.post(url, json=payload, headers=headers, timeout=10, verify=GOTIFY_VERIFY_SSL)
         response.raise_for_status()
         print(f"Gotify notification sent: {title}", flush=True)
         return True
@@ -226,6 +227,21 @@ async def ban_user(ctx, username: str):
             await ctx.send(f"**User {username} was timed out for 1 minute**")
     else:
         await member.timeout(timedelta(minutes=1), reason="Why did you think that would work? You fool. You buffoon.")
+
+
+@bot.command(name='test_gotify')
+@commands.has_permissions(administrator=True)
+async def test_gotify(ctx):
+    await ctx.send("Testing Gotify notification...")
+    result = send_gotify_notification(
+        "[TEST] AdiosBot Test",
+        "This is a test notification from AdiosBot",
+        priority=5
+    )
+    if result:
+        await ctx.send("**Gotify notification sent successfully!**")
+    else:
+        await ctx.send("**Failed to send Gotify notification. Check logs for details.**")
 
 
 # Check for inactive members
