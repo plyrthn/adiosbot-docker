@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from pprint import pprint
+
 import discord
 from discord.ext import commands, tasks
 import os
@@ -387,10 +389,8 @@ async def change_song():
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}', flush=True)
-    send_gotify_notification(
-        "[STARTUP] AdiosBot Started",
-        f"Bot is online and monitoring {len(bot.guilds)} server(s)\nAuto-kick: {'ENABLED' if AUTO_KICK else 'DISABLED'}\nCheck interval: every {CHECK_SCHEDULE_HOURS} hours\nInactivity threshold: {INACTIVITY_CHECK_DAYS} days",
-        priority=5
+    print(
+        f"[STARTUP] AdiosBot Started\nBot is online and monitoring {len(bot.guilds)} server(s)\nAuto-kick: {'ENABLED' if AUTO_KICK else 'DISABLED'}\nCheck interval: every {CHECK_SCHEDULE_HOURS} hours\nInactivity threshold: {INACTIVITY_CHECK_DAYS} days", flush=True
     )
 
     for guild in bot.guilds:
