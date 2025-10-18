@@ -36,9 +36,15 @@ else:
 # Gotify configuration
 GOTIFY_URL = os.environ.get('GOTIFY_URL', '')
 GOTIFY_TOKEN = os.environ.get('GOTIFY_TOKEN', '')
+GOTIFY_VERIFY_SSL = os.environ.get('GOTIFY_VERIFY_SSL', 'true').lower() == 'true'
 AUTO_KICK = os.environ.get('AUTO_KICK', 'false').lower() == 'true'
 INACTIVITY_CHECK_DAYS = int(os.environ.get('INACTIVITY_CHECK_DAYS', '30'))
 CHECK_SCHEDULE_HOURS = int(os.environ.get('CHECK_SCHEDULE_HOURS', '168'))
+
+if not GOTIFY_VERIFY_SSL:
+    import urllib3
+
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 if not os.path.exists(working_dir):
     os.makedirs(working_dir)
