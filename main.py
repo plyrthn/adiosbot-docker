@@ -302,8 +302,8 @@ async def kick_inactive(ctx, n: int):
                     try:
                         await member.kick(reason=f"Inactive in {guild.name} for {n} days")
                         await ctx.send(f"**Kicked {member.name} for inactivity**")
-                    except:
-                        print(f'Error kicking {member.name}', flush=True)
+                    except Exception as e:
+                        print(f'Error kicking {member.name}: {str(e)}', flush=True)
                 else:
                     inactive_whitelisted_members.append(member.name)
 
@@ -344,8 +344,8 @@ async def scheduled_inactivity_check():
                         await member.kick(reason=f"Inactive for {INACTIVITY_CHECK_DAYS} days")
                         kicked.append(member.name)
                         print(f"Auto-kicked {member.name} for inactivity", flush=True)
-                    except:
-                        print(f"Failed to kick {member.name}", flush=True)
+                    except Exception as e:
+                        print(f'Error kicking {member.name}: {str(e)}', flush=True)
 
                 if kicked:
                     message = f"Auto-kicked {len(kicked)} inactive members from {guild.name}:\n\n{chr(10).join([f'- {name}' for name in kicked])}"
